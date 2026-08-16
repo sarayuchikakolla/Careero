@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import ResumeUpload from "@/components/ResumeUpload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +17,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-const ROLES = [
+// Default/general role list — shown for "general" or any company without a custom list
+const DEFAULT_ROLES = [
   "Frontend Developer",
   "Backend Developer",
   "Full Stack Engineer",
@@ -28,20 +29,189 @@ const ROLES = [
   "Mobile Developer",
 ];
 
-const COMPANIES = [
-  { value: "general",   label: "No specific company (General)" },
-  { value: "google",    label: "🔵 Google" },
-  { value: "amazon",    label: "🟠 Amazon" },
-  { value: "microsoft", label: "🟦 Microsoft" },
-  { value: "tcs",       label: "🏢 TCS" },
-  { value: "infosys",   label: "🏢 Infosys" },
-  { value: "wipro",     label: "🏢 Wipro" },
-  { value: "startup",   label: "🚀 Startup / Product Company" },
+// Roles actually hired for at each company — keeps the role dropdown (and the
+// questions generated from role + company) relevant instead of generic.
+const COMPANY_ROLES: Record<string, string[]> = {
+  google: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Data Scientist", "Machine Learning Engineer", "Product Manager", "Site Reliability Engineer",
+  ],
+  amazon: [
+    "Software Development Engineer", "Backend Developer", "Data Scientist",
+    "DevOps Engineer", "Product Manager", "Solutions Architect",
+  ],
+  microsoft: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Data Scientist", "Product Manager", "Cloud Solutions Engineer",
+  ],
+  apple: [
+    "Software Engineer", "iOS Developer", "Mobile Developer",
+    "Machine Learning Engineer", "Hardware Engineer", "Product Manager",
+  ],
+  meta: [
+    "Software Engineer", "Frontend Developer", "Backend Developer",
+    "Data Scientist", "Machine Learning Engineer", "Product Manager",
+  ],
+  netflix: [
+    "Software Engineer", "Backend Developer", "Data Scientist",
+    "Machine Learning Engineer", "DevOps Engineer", "Product Manager",
+  ],
+  uber: [
+    "Backend Developer", "Full Stack Engineer", "Mobile Developer",
+    "Data Scientist", "Machine Learning Engineer", "Site Reliability Engineer", "Product Manager",
+  ],
+  airbnb: [
+    "Full Stack Engineer", "Frontend Developer", "Backend Developer",
+    "Data Scientist", "Product Manager", "Mobile Developer",
+  ],
+  adobe: [
+    "Software Engineer", "Frontend Developer", "Backend Developer",
+    "Product Manager", "Machine Learning Engineer",
+  ],
+  salesforce: [
+    "Software Engineer", "Backend Developer", "Full Stack Engineer",
+    "DevOps Engineer", "Product Manager", "Solutions Architect",
+  ],
+  oracle: [
+    "Software Engineer", "Backend Developer", "Database Engineer",
+    "Cloud Solutions Engineer", "DevOps Engineer",
+  ],
+  flipkart: [
+    "Backend Developer", "Full Stack Engineer", "Frontend Developer",
+    "Data Scientist", "Product Manager", "Mobile Developer",
+  ],
+  swiggy: [
+    "Backend Developer", "Full Stack Engineer", "Mobile Developer",
+    "Data Scientist", "Product Manager", "DevOps Engineer",
+  ],
+  zomato: [
+    "Backend Developer", "Full Stack Engineer", "Mobile Developer",
+    "Data Scientist", "Product Manager",
+  ],
+  paytm: [
+    "Backend Developer", "Full Stack Engineer", "Mobile Developer",
+    "Data Scientist", "DevOps Engineer", "Product Manager",
+  ],
+  tcs: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "DevOps Engineer", "Business Analyst",
+  ],
+  infosys: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "DevOps Engineer", "Business Analyst",
+  ],
+  wipro: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "DevOps Engineer", "Business Analyst",
+  ],
+  hcl: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "DevOps Engineer",
+  ],
+  cognizant: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "Business Analyst",
+  ],
+  accenture: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Business Analyst", "Product Manager", "DevOps Engineer",
+  ],
+  capgemini: [
+    "Software Engineer", "Backend Developer", "Frontend Developer",
+    "Full Stack Engineer", "DevOps Engineer",
+  ],
+  deloitte: [
+    "Business Analyst", "Data Scientist", "Software Engineer",
+    "Product Manager", "DevOps Engineer",
+  ],
+  jpmorgan: [
+    "Software Engineer", "Backend Developer", "Data Scientist",
+    "Quantitative Analyst", "DevOps Engineer",
+  ],
+  goldman: [
+    "Software Engineer", "Backend Developer", "Data Scientist",
+    "Quantitative Analyst", "DevOps Engineer",
+  ],
+  startup: [
+    "Full Stack Engineer", "Frontend Developer", "Backend Developer",
+    "Product Manager", "Mobile Developer", "DevOps Engineer",
+  ],
+};
+
+const getRolesForCompany = (company: string): string[] =>
+  COMPANY_ROLES[company] ?? DEFAULT_ROLES;
+
+const COMPANY_GROUPS = [
+  {
+    label: "General",
+    options: [
+      { value: "general", label: "No specific company (General)" },
+    ],
+  },
+  {
+    label: "Big Tech",
+    options: [
+      { value: "google", label: "🔵 Google" },
+      { value: "amazon", label: "🟠 Amazon" },
+      { value: "microsoft", label: "🟦 Microsoft" },
+      { value: "apple", label: "🍎 Apple" },
+      { value: "meta", label: "🔷 Meta" },
+      { value: "netflix", label: "🔴 Netflix" },
+    ],
+  },
+  {
+    label: "Product & Unicorns",
+    options: [
+      { value: "uber", label: "⬛ Uber" },
+      { value: "airbnb", label: "🏠 Airbnb" },
+      { value: "adobe", label: "🅰️ Adobe" },
+      { value: "salesforce", label: "☁️ Salesforce" },
+      { value: "oracle", label: "🔶 Oracle" },
+      { value: "flipkart", label: "🛒 Flipkart" },
+      { value: "swiggy", label: "🍔 Swiggy" },
+      { value: "zomato", label: "🍽️ Zomato" },
+      { value: "paytm", label: "💳 Paytm" },
+    ],
+  },
+  {
+    label: "Indian IT Services",
+    options: [
+      { value: "tcs", label: "🏢 TCS" },
+      { value: "infosys", label: "🏢 Infosys" },
+      { value: "wipro", label: "🏢 Wipro" },
+      { value: "hcl", label: "🏢 HCLTech" },
+      { value: "cognizant", label: "🏢 Cognizant" },
+      { value: "accenture", label: "🏢 Accenture" },
+      { value: "capgemini", label: "🏢 Capgemini" },
+      { value: "deloitte", label: "🏢 Deloitte" },
+    ],
+  },
+  {
+    label: "Finance",
+    options: [
+      { value: "jpmorgan", label: "🏦 JPMorgan Chase" },
+      { value: "goldman", label: "🏦 Goldman Sachs" },
+    ],
+  },
+  {
+    label: "Other",
+    options: [
+      { value: "startup", label: "🚀 Startup / Product Company" },
+    ],
+  },
 ];
 
 const COMPANY_LABELS: Record<string, string> = {
   google: "Google Style", amazon: "Amazon Style", microsoft: "Microsoft Style",
-  tcs: "TCS Style", infosys: "Infosys Style", wipro: "Wipro Style", startup: "Startup Style",
+  apple: "Apple Style", meta: "Meta Style", netflix: "Netflix Style",
+  uber: "Uber Style", airbnb: "Airbnb Style", adobe: "Adobe Style",
+  salesforce: "Salesforce Style", oracle: "Oracle Style", flipkart: "Flipkart Style",
+  swiggy: "Swiggy Style", zomato: "Zomato Style", paytm: "Paytm Style",
+  tcs: "TCS Style", infosys: "Infosys Style", wipro: "Wipro Style",
+  hcl: "HCLTech Style", cognizant: "Cognizant Style", accenture: "Accenture Style",
+  capgemini: "Capgemini Style", deloitte: "Deloitte Style",
+  jpmorgan: "JPMorgan Style", goldman: "Goldman Sachs Style",
+  startup: "Startup Style",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,6 +234,20 @@ const Interview = () => {
   const { toast }  = useToast();
   const { user }   = useAuth();
   const navigate   = useNavigate();
+
+  // Role options track the selected company so the dropdown — and the
+  // questions later generated from role + company — stay relevant.
+  const availableRoles = getRolesForCompany(selectedCompany);
+
+  const handleCompanyChange = (company: string) => {
+    setSelectedCompany(company);
+    const rolesForCompany = getRolesForCompany(company);
+    // If the currently picked role doesn't exist for the new company, clear it
+    // so we never send a mismatched role/company pair to the interview API.
+    if (selectedRole && !rolesForCompany.includes(selectedRole)) {
+      setSelectedRole("");
+    }
+  };
 
   const { isListening, transcript, supported: sttSupported, startListening, stopListening, resetTranscript } = useSpeechRecognition();
   const { isSpeaking, supported: ttsSupported, speak, stop: stopSpeaking } = useSpeechSynthesis();
@@ -230,12 +414,16 @@ const Interview = () => {
                 <p className="text-sm font-medium text-foreground mb-2">2. Select Target Role</p>
                 <Select onValueChange={setSelectedRole} value={selectedRole}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a role" />
+                    <SelectValue placeholder={
+                      selectedCompany !== "general"
+                        ? `Choose a role at ${COMPANY_LABELS[selectedCompany] ?? "this company"}`
+                        : "Choose a role"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                    {availableRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                     {resumeAnalysis?.recommended_roles?.map(r =>
-                      !ROLES.includes(r) ? (
+                      !availableRoles.includes(r) ? (
                         <SelectItem key={r} value={r}>
                           {r} <span className="text-xs text-muted-foreground">(recommended)</span>
                         </SelectItem>
@@ -243,6 +431,11 @@ const Interview = () => {
                     )}
                   </SelectContent>
                 </Select>
+                {selectedCompany !== "general" && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Showing roles typically hired for at {COMPANY_LABELS[selectedCompany]?.replace(" Style", "")}
+                  </p>
+                )}
               </div>
 
               {/* 3 Company */}
@@ -255,13 +448,18 @@ const Interview = () => {
                     <Building2 className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <Select onValueChange={setSelectedCompany} value={selectedCompany}>
+                    <Select onValueChange={handleCompanyChange} value={selectedCompany}>
                       <SelectTrigger className="w-full border-0 shadow-none p-0 h-auto focus:ring-0 focus:ring-offset-0">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        {COMPANIES.map(c => (
-                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      <SelectContent className="max-h-72">
+                        {COMPANY_GROUPS.map(group => (
+                          <SelectGroup key={group.label}>
+                            <SelectLabel>{group.label}</SelectLabel>
+                            {group.options.map(c => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectGroup>
                         ))}
                       </SelectContent>
                     </Select>
